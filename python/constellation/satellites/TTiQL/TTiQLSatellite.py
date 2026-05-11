@@ -2,34 +2,34 @@ import time
 from typing import Any
 
 from constellation.core.configuration import Configuration
-from constellation.core.cmdp import MetricsType
 from constellation.core.satellite import Satellite
 from constellation.core.commandmanager import cscp_requestable
 from constellation.core.fsm import SatelliteState
 from constellation.core.message.cscp1 import CSCP1Message
+from constellation.core.monitoring import schedule_metric
 
 from .QL355TPII import QL355TPII
+
+sampling_interval = 2.0 
 
 class TTiQLSatellite(Satellite):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.device = None
         self.ip = None
-        self.sampling_interval = 2.0 
 
     def do_initializing(self, config: Configuration) -> str:
         self.ip = config["ip"]
-        self.sampling_interval = config.setdefault("sampling_interval", 2.0)
         
-        self.v1 = config.setdefault("voltage1", 0.0)
-        self.i1 = config.setdefault("current_limit1", 1.0)
-        self.ovp1 = config.setdefault("ovp1", 40.0)
-        self.ocp1 = config.setdefault("ocp1", 5.5)
+        self.v1 = config["voltage1"] # 0
+        self.i1 = config["current_limit1"] # 1
+        self.ovp1 = config["ovp1"] # 40.0
+        self.ocp1 = config["ocp1"] # 5.5
 
-        self.v2 = config.setdefault("voltage2", 0.0)
-        self.i2 = config.setdefault("current_limit2", 1.0)
-        self.ovp2 = config.setdefault("ovp2", 40.0)
-        self.ocp2 = config.setdefault("ocp2", 5.5)
+        self.v2 = config["voltage2"] # 0
+        self.i2 = config["current_limit2"] # 1
+        self.ovp2 = config["ovp2"] # 40 
+        self.ocp2 = config["ocp2"] # 5.5
 
         try:
             self.device = QL355TPII(self.ip)
@@ -39,48 +39,42 @@ class TTiQLSatellite(Satellite):
         except Exception as e:
             raise RuntimeError(f"Connection failed to {self.ip}: {e}")
 
-        self.reset_scheduled_metrics()
+        #self.reset_scheduled_metrics()
         
-        # Channel 1
-        self.schedule_metric("CH1_V", "V", MetricsType.LAST_VALUE, self.sampling_interval, self.get_v1)
-        self.schedule_metric("CH1_I", "A", MetricsType.LAST_VALUE, self.sampling_interval, self.get_i1)
-        self.schedule_metric("CH1_STAT", "bitmask", MetricsType.LAST_VALUE, self.sampling_interval, self.get_stat1)
-        
-        # Channel 2
-        self.schedule_metric("CH2_V", "V", MetricsType.LAST_VALUE, self.sampling_interval, self.get_v2)
-        self.schedule_metric("CH2_I", "A", MetricsType.LAST_VALUE, self.sampling_interval, self.get_i2)
-        self.schedule_metric("CH2_STAT", "bitmask", MetricsType.LAST_VALUE, self.sampling_interval, self.get_stat2)
-        
-        # Error
-        self.schedule_metric("LAST_ERROR", "code", MetricsType.LAST_VALUE, 10, self.get_error)
-
         return f"Initialized at {self.ip}"
 
-    def get_v1(self):
+    @schedule_metric("V", sampling_interval)
+    def CH1_V(self):
         if self.device: return self.device.get_voltage_readback(1)
         return 0.0
-
-    def get_i1(self):
+   
+    @schedule_metric("A", sampling_interval)
+    def CH1_I(self):
         if self.device: return self.device.get_current_readback(1)
         return 0.0
-
-    def get_stat1(self):
+   
+    @schedule_metric("bitmask", sampling_interval)
+    def CH1_STAT(self):
         if self.device: return self.device.get_limit_status(1)
         return 0
-
-    def get_v2(self):
+   
+    @schedule_metric("V", sampling_interval)
+    def CH2_V(self):
         if self.device: return self.device.get_voltage_readback(2)
         return 0.0
-
-    def get_i2(self):
+   
+    @schedule_metric("A", sampling_interval)
+    def CH2_I(self):
         if self.device: return self.device.get_current_readback(2)
         return 0.0
-    
-    def get_stat2(self):
+   
+    @schedule_metric("bitmask", sampling_interval) 
+    def CH2_STAT(self):
         if self.device: return self.device.get_limit_status(2)
         return 0
 
-    def get_error(self):
+    @schedule_metric("code", sampling_interval)
+    def LAST_ERROR(self):
         if self.device:
             err = self.device.get_execution_error()
             if err != 0:
@@ -155,17 +149,6 @@ class TTiQLSatellite(Satellite):
         self.device.set_output(2, True)
         return "Channels 1 & 2 ON"
     
-    @cscp_requestable
-    def do_a_thing(self):
-        return 0
-    @cscp_requestable
-    def _dont_do_a_thing(self):
-        return 0
-
-    def do_run(self, payload: Any) -> str:
-        self._state_thread_evt.wait()
-        return "Run finished"
-
     def do_landing(self) -> str:
         if self.device:
             self.device.set_output(1, False)

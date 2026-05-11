@@ -1,0 +1,26 @@
+[satellites.TTiQLSatellite.TTiQL]
+type = "TTiQLSatellite"
+ip = "192.168.0.101"  
+voltage1 = 0.0
+current_limit1 = 0.0
+ovp1 = 40.0
+ocp1 = 5.5
+voltage2 = 0.0
+current_limit2 = 0.001
+ovp2 = 40.0
+ocp2 = 5.5
+
+[satellites.Influx.DB]
+org = "Pixlab"
+#bucket = "TTi"
+token = "WJ2nUFCBc4Qz7hCh4Ztv_C2xa4WlXbZIN28n2EorHEj_weuUV0r9Y3cV9YJHEA288YdUigGZQn26lgTyuwmyFg=="
+# PJP0-gxun23D0yJ_rvqeNvpm2tJPGgeWCUojm2DNkYEPxS7V3XCBuqniIiWPWQtITKXr20ArIIgO3t094IhDGQ==
+
+[satellites.TJMonoPix2.chip0]
+chip_sn = 'W00R00'
+start_column = 300
+istop_column = 301
+start_row = 0
+stop_row = 1
+max_triggers = 10   # Number of maximum received triggers after stopping readout, if False no limit on received trigger
+
