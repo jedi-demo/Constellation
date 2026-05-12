@@ -5,8 +5,8 @@ voltage1 = 0.0
 current_limit1 = 0.0
 ovp1 = 40.0
 ocp1 = 5.5
-voltage2 = 0.0
-current_limit2 = 0.001
+voltage2 = 3.0
+current_limit2 = 0.002
 ovp2 = 40.0
 ocp2 = 5.5
 
