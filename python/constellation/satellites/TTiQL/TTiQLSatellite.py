@@ -38,8 +38,12 @@ class TTiQLSatellite(Satellite):
             self.log.info(f"Connected to TTi: {idn}")
         except Exception as e:
             raise RuntimeError(f"Connection failed to {self.ip}: {e}")
-
-        #self.reset_scheduled_metrics()
+        
+        self.device.set_ovp(1, self.ovp1); self.device.set_ocp(1, self.ocp1)
+        self.device.set_voltage(1, self.v1); self.device.set_current_limit(1, self.i1)
+        
+        self.device.set_ovp(2, self.ovp2); self.device.set_ocp(2, self.ocp2)
+        self.device.set_voltage(2, self.v2); self.device.set_current_limit(2, self.i2)
         
         return f"Initialized at {self.ip}"
 
@@ -139,12 +143,6 @@ class TTiQLSatellite(Satellite):
         return "Error", None, {}
 
     def do_launching(self) -> str:
-        self.device.set_ovp(1, self.ovp1); self.device.set_ocp(1, self.ocp1)
-        self.device.set_voltage(1, self.v1); self.device.set_current_limit(1, self.i1)
-        
-        self.device.set_ovp(2, self.ovp2); self.device.set_ocp(2, self.ocp2)
-        self.device.set_voltage(2, self.v2); self.device.set_current_limit(2, self.i2)
-
         self.device.set_output(1, True)
         self.device.set_output(2, True)
         return "Channels 1 & 2 ON"
