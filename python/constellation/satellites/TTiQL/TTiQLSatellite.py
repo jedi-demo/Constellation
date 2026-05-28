@@ -21,15 +21,29 @@ class TTiQLSatellite(Satellite):
     def do_initializing(self, config: Configuration) -> str:
         self.ip = config["ip"]
         
-        self.v1 = config["voltage1"] # 0
-        self.i1 = config["current_limit1"] # 1
-        self.ovp1 = config["ovp1"] # 40.0
-        self.ocp1 = config["ocp1"] # 5.5
+        def get_cfg(key, default):
+            return config[key] if key in config else default
 
-        self.v2 = config["voltage2"] # 0
-        self.i2 = config["current_limit2"] # 1
-        self.ovp2 = config["ovp2"] # 40 
-        self.ocp2 = config["ocp2"] # 5.5
+        self.v1 = float(get_cfg("voltage1", 0.0))
+        self.i1 = float(get_cfg("current_limit1", 1.0))
+        self.ovp1 = float(get_cfg("ovp1", 40.0))
+        self.ocp1 = float(get_cfg("ocp1", 5.5))
+
+        self.v2 = float(get_cfg("voltage2", 0.0))
+        self.i2 = float(get_cfg("current_limit2", 1.0))
+        self.ovp2 = float(get_cfg("ovp2", 40.0))
+        self.ocp2 = float(get_cfg("ocp2", 5.5))
+
+        self.enable_ch1 = bool(get_cfg("enable_ch1", False))
+        self.enable_ch2 = bool(get_cfg("enable_ch2", False))
+        self.launch_order = get_cfg("launch_order", [1, 2])
+        self.delay_between = float(get_cfg("delay_between", 1.0))
+        self.start_delay = float(get_cfg("start_delay", 0.0))
+        
+        self.ramp_ch1 = bool(get_cfg("ramp_ch1", False))
+        self.ramp_ch2 = bool(get_cfg("ramp_ch2", False))
+        self.ramp_step = float(get_cfg("ramp_step", 1.0))
+        self.ramp_delay = float(get_cfg("ramp_delay", 1.0))
 
         try:
             self.device = QL355TPII(self.ip)
@@ -39,13 +53,86 @@ class TTiQLSatellite(Satellite):
         except Exception as e:
             raise RuntimeError(f"Connection failed to {self.ip}: {e}")
         
-        self.device.set_ovp(1, self.ovp1); self.device.set_ocp(1, self.ocp1)
-        self.device.set_voltage(1, self.v1); self.device.set_current_limit(1, self.i1)
+        self.device.set_ovp(1, self.ovp1)
+        self.device.set_ocp(1, self.ocp1)
+        self.device.set_current_limit(1, self.i1)
+        self.device.set_ovp(2, self.ovp2)
+        self.device.set_ocp(2, self.ocp2)
+        self.device.set_current_limit(2, self.i2)
         
-        self.device.set_ovp(2, self.ovp2); self.device.set_ocp(2, self.ocp2)
-        self.device.set_voltage(2, self.v2); self.device.set_current_limit(2, self.i2)
+        if self.ramp_ch1: 
+            self.device.set_voltage(1, 0.0)
+        else: 
+            self.device.set_voltage(1, self.v1)
+            
+        if self.ramp_ch2: 
+            self.device.set_voltage(2, 0.0)
+        else: 
+            self.device.set_voltage(2, self.v2)
         
         return f"Initialized at {self.ip}"
+
+    def do_launching(self) -> str:
+        if self.start_delay > 0:
+            time.sleep(self.start_delay)
+        msg = []
+        for ch in self.launch_order:
+            if ch == 1 and self.enable_ch1:
+                self._launch_channel(1, self.v1, self.ramp_ch1)
+                msg.append("CH1 ON")
+                time.sleep(self.delay_between)
+            elif ch == 2 and self.enable_ch2:
+                self._launch_channel(2, self.v2, self.ramp_ch2)
+                msg.append("CH2 ON")
+                time.sleep(self.delay_between)
+        
+        if not msg: 
+            return "No channels enabled"
+        return " -> ".join(msg)
+
+    def do_landing(self) -> str:
+        landing_order = reversed(self.launch_order)
+        for ch in landing_order:
+            if ch == 1 and self.enable_ch1:
+                self._land_channel(1, self.v1, self.ramp_ch1)
+                time.sleep(self.delay_between)
+            elif ch == 2 and self.enable_ch2:
+                self._land_channel(2, self.v2, self.ramp_ch2)
+                time.sleep(self.delay_between)
+        
+        return "Landing sequence completed"
+
+    def _launch_channel(self, ch: int, target_v: float, do_ramp: bool):
+        if do_ramp:
+            self.log.info(f"RAMP CH{ch}: Ramping up to {target_v}V...")
+            current_v = 0.0
+            self.device.set_voltage(ch, current_v)
+            self.device.set_output(ch, True)
+            
+            while current_v < target_v:
+                current_v += self.ramp_step
+                if current_v > target_v: 
+                    current_v = target_v
+                self.device.set_voltage(ch, current_v)
+                self.log.info(f"RAMP CH{ch}: {current_v}V")
+                time.sleep(self.ramp_delay)
+        else:
+            self.device.set_voltage(ch, target_v)
+            self.device.set_output(ch, True)
+
+    def _land_channel(self, ch: int, target_v: float, do_ramp: bool):
+        if do_ramp:
+            self.log.info(f"RAMP CH{ch}: Ramping down from {target_v}V...")
+            current_v = target_v
+            while current_v > 0:
+                current_v -= self.ramp_step
+                if current_v < 0: 
+                    current_v = 0.0
+                self.device.set_voltage(ch, current_v)
+                self.log.info(f"RAMP CH{ch}: {current_v}V")
+                time.sleep(self.ramp_delay)
+                
+        self.device.set_output(ch, False)
 
     @schedule_metric("V", sampling_interval)
     def CH1_V(self):
@@ -142,16 +229,6 @@ class TTiQLSatellite(Satellite):
             return f"CH{channel} is {s_str}", state, {}
         return "Error", None, {}
 
-    def do_launching(self) -> str:
-        self.device.set_output(1, True)
-        self.device.set_output(2, True)
-        return "Channels 1 & 2 ON"
-    
-    def do_landing(self) -> str:
-        if self.device:
-            self.device.set_output(1, False)
-            self.device.set_output(2, False)
-        return "Channels 1 & 2 OFF"
     
     def reentry(self) -> None:
         if self.device: self.device.close()

@@ -6,7 +6,7 @@ SPDX-License-Identifier: EUPL-1.2
 from constellation.core.logging import setup_cli_logging
 from constellation.core.transmitter_satellite import TransmitterSatelliteArgumentParser
 
-from .PyRandomTransmitter import PyRandomTransmitter
+from PyRandomTransmitter import PyRandomTransmitter
 
 
 def main(args=None):
