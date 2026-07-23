@@ -24,7 +24,7 @@ class KeithleyInterface(metaclass=ABCMeta):
         flow_control: bool,
         timeout: float = 1000,
     ):
-        self._rm = pyvisa.ResourceManager()
+        self._rm = pyvisa.ResourceManager('@py')
         visa_address = f"ASRL{port}::INSTR"
         self._serial: pyvisa.resources.SerialInstrument = self._rm.open_resource(  # type: ignore
             visa_address,

@@ -1,18 +1,19 @@
 [satellites.TTiQLSatellite.TTiQL]
 type = "TTiQLSatellite"
-ip = "192.168.0.101"  
+ip = "192.168.0.101"
 enable_ch1 = false
-enable_ch2 = true
+enable_ch2 = false
+launch_order = [2, 1]
 ramp_ch2 = true
 ramp_step = 1.0
 ramp_delay = 1.0
-voltage1 = 0.0
+voltage1 = 1.8
 current_limit1 = 1.0
 voltage2 = 3.0
-current_limit2 = 1.0
+current_limit2 = 0.005
 ovp1 = 40.0
 ocp1 = 5.5
-ovp2 = 40.0
+ovp2 = 7.0
 ocp2 = 5.5
 _conditions.require_stopping_after = ["TTiQLSatellite.TTiQL2"]
 _conditions.require_landing_after = ["TTiQLSatellite.TTiQL2"]
@@ -30,7 +31,7 @@ ramp_ch2 = false
 voltage1 = 5.0
 current_limit1 = 1.0
 voltage2 = 1.8
-current_limit2 = 0.5
+current_limit2 = 0.7
 ovp1 = 40.0
 ocp1 = 5.5
 ovp2 = 40.0
@@ -54,8 +55,28 @@ max_triggers = 10   # Number of maximum received triggers after stopping readout
 send_data= "tcp://127.0.0.1:5500" # Socket address of online monitor
 _conditions.require_launching_after = ["TTiQLSatellite.TTiQL2"]
 _conditions.require_starting_after = ["TTiQLSatellite.TTiQL2"]
+[satellites.TJMonoPix2.chip1]
+chip_sn = 'W05R24'
+start_column = 300
+stop_column = 305
+start_row = 0
+stop_row = 512
+max_triggers = 10   # Number of maximum received triggers after stopping readout, if False no limit on received trigger
+send_data= "tcp://127.0.0.1:5500" # Socket address of online monitor
+_conditions.require_launching_after = ["TTiQLSatellite.TTiQL2"]
+_conditions.require_starting_after = ["TTiQLSatellite.TTiQL2"]
 
 [satellites.TJMonoPix2.chip0._data]
 bor_timeout = 30
 data_timeout = 30
 eor_timeout = 30
+
+[satellites.Keithley.2410]
+device = "2410"
+port = "/dev/ttyUSB0"
+terminal = "front"
+voltage = 3.0
+voltage_step = 1.0
+settle_time = 1.0
+ovp = 20.0
+compliance = 0.1

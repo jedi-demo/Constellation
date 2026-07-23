@@ -1,3 +1,10 @@
+"""
+SPDX-FileCopyrightText: 2024 DESY and the Constellation authors
+SPDX-License-Identifier: EUPL-1.2
+
+Provides the class for the AIM-TTi QL Series satellite.
+"""
+
 import time
 from typing import Any
 
@@ -13,12 +20,19 @@ from .QL355TPII import QL355TPII
 sampling_interval = 2.0 
 
 class TTiQLSatellite(Satellite):
+    """
+    Satellite controlling an AIM-TTi QL Series power supply.
+    
+    Provides independent channel control, sequenced launching, 
+    and voltage ramping capabilities.
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.device = None
         self.ip = None
 
     def do_initializing(self, config: Configuration) -> str:
+        """Read configuration, establish connection, and apply limits."""
         self.ip = config["ip"]
         
         def get_cfg(key, default):
@@ -73,6 +87,7 @@ class TTiQLSatellite(Satellite):
         return f"Initialized at {self.ip}"
 
     def do_launching(self) -> str:
+        """Start the active channels according to the defined sequence and ramps."""
         if self.start_delay > 0:
             time.sleep(self.start_delay)
         msg = []
@@ -91,6 +106,7 @@ class TTiQLSatellite(Satellite):
         return " -> ".join(msg)
 
     def do_landing(self) -> str:
+        """Stop the active channels using the reverse sequence."""
         landing_order = reversed(self.launch_order)
         for ch in landing_order:
             if ch == 1 and self.enable_ch1:
@@ -103,6 +119,7 @@ class TTiQLSatellite(Satellite):
         return "Landing sequence completed"
 
     def _launch_channel(self, ch: int, target_v: float, do_ramp: bool):
+        """Helper method to turn on a channel, applying a ramp if configured."""
         if do_ramp:
             self.log.info(f"RAMP CH{ch}: Ramping up to {target_v}V...")
             current_v = 0.0
@@ -121,6 +138,7 @@ class TTiQLSatellite(Satellite):
             self.device.set_output(ch, True)
 
     def _land_channel(self, ch: int, target_v: float, do_ramp: bool):
+        """Helper method to turn off a channel, applying a downward ramp if configured."""
         if do_ramp:
             self.log.info(f"RAMP CH{ch}: Ramping down from {target_v}V...")
             current_v = target_v
@@ -133,6 +151,10 @@ class TTiQLSatellite(Satellite):
                 time.sleep(self.ramp_delay)
                 
         self.device.set_output(ch, False)
+
+    # --------------------------------------------------------------------------
+    # METRICS
+    # --------------------------------------------------------------------------
 
     @schedule_metric("V", sampling_interval)
     def CH1_V(self):
@@ -173,8 +195,13 @@ class TTiQLSatellite(Satellite):
             return err
         return 0
 
+    # --------------------------------------------------------------------------
+    # CUSTOM COMMANDS
+    # --------------------------------------------------------------------------
+
     @cscp_requestable
     def set_live_voltage(self, request: CSCP1Message) -> tuple[str, Any, dict]:
+        """Change the target voltage of a specific channel dynamically."""
         data = request.payload
         channel = 1
         voltage = 0.0
@@ -194,6 +221,7 @@ class TTiQLSatellite(Satellite):
 
     @cscp_requestable
     def set_live_current(self, request: CSCP1Message) -> tuple[str, Any, dict]:
+        """Change the current limit of a specific channel dynamically."""
         data = request.payload
         channel = 1
         current = 0.0
@@ -212,6 +240,7 @@ class TTiQLSatellite(Satellite):
 
     @cscp_requestable
     def set_output_state(self, request: CSCP1Message) -> tuple[str, Any, dict]:
+        """Turn a specific channel ON or OFF dynamically."""
         data = request.payload
         channel = 1
         state = False
@@ -229,12 +258,17 @@ class TTiQLSatellite(Satellite):
             return f"CH{channel} is {s_str}", state, {}
         return "Error", None, {}
 
-    
+    # --------------------------------------------------------------------------
+    # STATE MACHINE HANDLERS
+    # --------------------------------------------------------------------------
+
     def reentry(self) -> None:
+        """Safely close the device connection on shutdown."""
         if self.device: self.device.close()
         super().reentry()
 
     def do_reconfigure(self, partial_config: Configuration) -> str:
+        """Handle dynamic configuration updates from the network."""
         if "voltage1" in partial_config:
             self.v1 = partial_config["voltage1"]
             self.device.set_voltage(1, self.v1)

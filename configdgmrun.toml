@@ -59,8 +59,20 @@ max_triggers = 10   # Number of maximum received triggers after stopping readout
 send_data= "tcp://127.0.0.1:5500" # Socket address of online monitor
 _conditions.require_launching_after = ["TTiQLSatellite.TTiQL2"]
 _conditions.require_starting_after = ["TTiQLSatellite.TTiQL2"]
-
+[TJMonopix2.chip1]
+# Scan to run on Start: all | analog | tune_global | tune_local | threshold | source | ext_trigger | noise_occ
+scan_mode = "analog"
+chip_sn = 'W05R24'
+start_column = 481
+stop_column = 512
+start_row = 0
+stop_row = 512
+max_triggers = 10   # Number of maximum received triggers after stopping readout, if False no limit on received trigger
+send_data= "tcp://127.0.0.1:5500" # Socket address of online monitor
+_conditions.require_launching_after = ["TTiQLSatellite.TTiQL2"]
+_conditions.require_starting_after = ["TTiQLSatellite.TTiQL2"]
 [TJMonopix2.chip0._data]
 bor_timeout = 30
 data_timeout = 30
 eor_timeout = 30
+[PyDevNullReceiver.PDNR]

@@ -1,5 +1,8 @@
 """
-Provides the entry point for the AIM-TTi QL355TP power supply satellite
+SPDX-FileCopyrightText: 2024 DESY and the Constellation authors
+SPDX-License-Identifier: EUPL-1.2
+
+Provides the entry point for the AIM-TTi QL355TP power supply satellite.
 """
 from constellation.core.logging import setup_cli_logging
 from constellation.core.satellite import SatelliteArgumentParser
